@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vllm-inference
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen3-vl-2b
+  namespace: vllm-inference
+  labels:
+    app: qwen3-vl-2b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qwen3-vl-2b
+  template:
+    metadata:
+      labels:
+        app: qwen3-vl-2b
+    spec:
+      nodeSelector:
+        role: gpu-inference
+      containers:
+      - name: vllm
+        image: public.ecr.aws/deep-learning-containers/vllm:0.15-gpu-py312
+        command: ["bash", "-c"]
+        args:
+        - |
+          pip install av torchcodec 2>/dev/null
+          python -m vllm.entrypoints.openai.api_server \
+            --model Qwen/Qwen3-VL-2B-Instruct \
+            --dtype auto \
+            --max-model-len 32768 \
+            --port 8000 \
+            --host 0.0.0.0 \
+            --trust-remote-code \
+            --limit-mm-per-prompt '{"image": 5, "video": 2}'
+        ports:
+        - containerPort: 8000
+          name: http
+        resources:
+          limits:
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "4"
+            memory: "16Gi"
+            nvidia.com/gpu: "1"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 120
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 120
+          periodSeconds: 30
+        env:
+        - name: VLLM_USE_V1
+          value: "0"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen3-vl-2b
+  namespace: vllm-inference
+spec:
+  selector:
+    app: qwen3-vl-2b
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: qwen3-vl-2b
+  namespace: vllm-inference
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: qwen3-vl-2b
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 300

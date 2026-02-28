@@ -1,0 +1,28 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-ray-cluster
+  region: ap-northeast-1
+
+managedNodeGroups:
+  - name: ng-gpu-inference
+    instanceTypes:
+      - g5.xlarge
+      - g5.2xlarge
+      - g6.xlarge
+      - g6.2xlarge
+    minSize: 0
+    maxSize: 5
+    desiredCapacity: 1
+    volumeSize: 100
+    amiFamily: AmazonLinux2023
+    labels:
+      role: gpu-inference
+    tags:
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/eks-ray-cluster: "owned"
+    privateNetworking: true
+    subnets:
+      - subnet-01bfb19b3bee01da6
+      - subnet-0749fe7a61246b7bf
