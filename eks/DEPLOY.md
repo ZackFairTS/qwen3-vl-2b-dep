@@ -83,11 +83,11 @@ kubectl port-forward -n vllm-inference svc/qwen3-vl-2b 8000:8000
 ## 关键配置说明
 
 - 镜像: `public.ecr.aws/deep-learning-containers/vllm:0.15-gpu-py312`
-- 模型最大上下文: 32768 tokens
-- 多模态限制: 单次请求最多 5 张图片、2 个视频
-- 环境变量 `VLLM_USE_V1=0`: 使用 vLLM v0 引擎
+- 模型最大上下文: 4096 tokens（配合 mm_processor_kwargs 降低视觉 tokens 后足够）
+- 视频处理参数: `fps=0.5`, `size.longest_edge=360448`（Qwen3-VL 专用参数名）
+- 注意: `VLLM_USE_V1=0` 在 vLLM 0.15 中不生效，V1 引擎是强制的
 - 资源请求: 4 CPU / 16Gi 内存 / 1 GPU
-- 健康探针: 120s 初始延迟（等待模型加载）
+- 健康探针: liveness 240s 初始延迟 + 30s 超时，readiness 180s 初始延迟 + 10s 超时
 
 ## HPA 扩缩策略
 
