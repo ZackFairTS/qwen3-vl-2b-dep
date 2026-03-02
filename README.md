@@ -92,6 +92,7 @@ requests.post(f"{vllm_url}/v1/chat/completions", json={
     "model": "Qwen/Qwen3-VL-2B-Instruct",
     "messages": [...],
     "max_tokens": 350,
+    "temperature": 0.3,
     "mm_processor_kwargs": {
         "fps": 0.5,
         "size": {"shortest_edge": 131072, "longest_edge": 360448}
@@ -151,7 +152,26 @@ readinessProbe:
 - Worker 节点也需要安装 `lance`、`lance-ray`、`boto3` 等依赖
 - `lance-ray.add_columns()` 是**原子操作**，中途崩溃不会保存任何结果
 
-### 5. 并发调优
+### 5. Prompt 与采样参数
+
+小模型（2B）容易陷入重复输出循环，导致 JSON 在 `max_tokens` 内被截断（缺少闭合 `}`），解析失败。
+
+防止措施：
+- **Prompt 加长度约束**：明确要求"100字以内"，避免模型无限重复
+- **降低 temperature**：从 0.7 降到 **0.3**，显著减少重复
+- 两项优化后，JSON 解析失败率从 **1.28%** 降至 **0%**
+
+```python
+PROMPT = "用中文简洁描述这个视频并打标签。直接输出JSON，包含两个key：description（字符串，100字以内），tags（字符串列表）。不要输出markdown格式。"
+
+requests.post(url, json={
+    ...,
+    "max_tokens": 350,
+    "temperature": 0.3,  # 不要用 0.7，小模型容易重复
+})
+```
+
+### 6. 并发调优
 
 | 参数 | 推荐值 | 说明 |
 |------|--------|------|
@@ -161,7 +181,7 @@ readinessProbe:
 | 总并发 | 48 | concurrency × threads |
 | vLLM pods | 5 | 每 pod 约承接 10 并发 |
 
-### 6. 常见问题
+### 7. 常见问题
 
 | 问题 | 原因 | 解决 |
 |------|------|------|
@@ -172,3 +192,4 @@ readinessProbe:
 | 滚动更新卡住 | GPU 资源不足，新旧 pod 死锁 | 手动删除旧 pod 或缩旧 ReplicaSet 到 0 |
 | Worker 报错 ModuleNotFoundError | Worker 节点未安装依赖 | 在 worker 上也执行 pip install |
 | 数据全是 ERROR | 请求返回 400 但脚本 catch 后继续 | 先小批量测试确认 200 再全量运行 |
+| description 是原始 JSON | 模型重复输出导致 JSON 截断，解析失败 | prompt 加"100字以内"，temperature 降到 0.3 |

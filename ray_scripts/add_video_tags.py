@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from lance_ray import add_columns
 import argparse
 
-PROMPT = "用中文描述这个视频并打标签。直接输出JSON，包含两个key：description（字符串），tags（字符串列表）。不要输出markdown格式。"
+PROMPT = "用中文简洁描述这个视频并打标签。直接输出JSON，包含两个key：description（字符串，100字以内），tags（字符串列表）。不要输出markdown格式。"
 
 
 def infer_video(s3_path, vllm_url):
@@ -31,7 +31,7 @@ def infer_video(s3_path, vllm_url):
                 {"type": "text", "text": PROMPT}
             ]}],
             "max_tokens": 350,
-            "temperature": 0.7,
+            "temperature": 0.3,
             "mm_processor_kwargs": {
                 "fps": 0.5,
                 "size": {"shortest_edge": 131072, "longest_edge": 360448}
