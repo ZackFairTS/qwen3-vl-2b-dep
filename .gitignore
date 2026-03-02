@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .DS_Store
 *.swp
+*.mp4
+*.json
+!package.json
+.env
+.venv/
