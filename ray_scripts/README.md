@@ -8,7 +8,7 @@
 |------|------|
 | `add_video_tags.py` | 主推理脚本，添加 `description` 和 `tags` 列 |
 | `optimize_dataset.py` | Lance 表 fragment 拆分工具，提升并行度 |
-| `monitor.sh` | Ray 任务监控脚本 |
+| `build_fts_index.py` | 为 description/tags 构建倒排索引，支持全文检索 |
 
 ## 使用方法
 
@@ -66,6 +66,21 @@ python3 optimize_dataset.py SOURCE_URI TARGET_URI --rows-per-fragment 500
 ```
 
 增加 fragment 数量以提升 Ray 并行度。建议每 fragment 500 行。
+
+### build_fts_index.py
+
+```bash
+# 构建索引
+python3 build_fts_index.py s3://bucket/dataset.lance
+
+# 构建索引并测试查询
+python3 build_fts_index.py s3://bucket/dataset.lance --query 猫
+
+# 指定列
+python3 build_fts_index.py s3://bucket/dataset.lance --columns description tags
+```
+
+已有索引会自动跳过，可重复运行。
 
 ## 实测性能
 
